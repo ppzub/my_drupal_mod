@@ -1,0 +1,144 @@
+<?php
+/**
+* Implements hook_menu().
+*/
+function my_modal_menu() {
+  $items['add/%ctools_js/comments'] = array(
+    'title' => 'Add comment',
+    'access callback' => TRUE,
+    'page callback'    => '_ctools_modal_comments',
+    'page arguments'   => array(1),
+  );
+  return $items;
+}
+
+/**
+* Implements hook_block_info().
+*/
+function my_modal_block_info(){
+  $blocks['comments_popup'] = array(
+    'info' => t('Add comment'),
+  );
+  return $blocks;
+}
+
+/**
+* Implements hook_block_view().
+*/
+
+function my_modal_block_view($delta = '') {
+  switch ($delta) {
+    case 'comments_popup':
+      ctools_include('ajax');
+      ctools_include('modal');
+      ctools_modal_add_js();
+      $news_id = arg(1);
+      if (is_numeric($news_id)) {
+        // Link class must be "ctools-use-modal"    
+        $block['content'] = l(t('Add comment'), "add/nojs/comments/{$news_id}", array('html' => TRUE, 'attributes' => array('class' => "ctools-use-modal")));
+      }
+      break;
+    }
+
+  return $block;
+}
+
+
+
+
+/**
+* Popup’s example form.
+*/
+function add_comment_form($form, $form_state) {
+$form = array();
+  $form['title'] = array(
+	'#type' => 'textfield',
+	'#maxlength' => 50,
+	'#size' => 25,
+	'#access' => TRUE,
+	'#title' => t('Title'),
+	'#required' => FALSE,
+	'#title_display' => 'before',
+	'#weight' => 0,
+  );
+$form['textarea'] = array(
+	'#type' => 'textarea',
+	'#access' => TRUE,
+	'#cols' => 80,
+	'#rows' => 10,
+	'#default_value' => t('Your comment'),
+	'#required' => TRUE,
+	'#title' => t('Commment'),
+	'#title_display' => 'invisible',
+	'#weight' => 1,
+	'#element_validate' => array('form_required_2'),
+);
+$form['submit'] = array(
+  '#type' => 'submit',
+  '#value' => t('OK'),
+  '#weight' => 2,
+  //'#submit' => array('_add_comment_form_submit'),
+ 	'#ajax' => array(
+        'callback' => '_add_comment_form_submit',
+      ), 
+);
+
+return $form;
+}
+
+function _add_comment_form_submit($form, &$form_state) {
+  global $user;
+  
+  $comment = new stdClass();  // Создаем объект comment
+  $comment->nid = arg(1); // nid ноды к которой нужно добавить комментарий
+  $comment->cid = 0; // оставить как есть
+  $comment->pid = 0; // id родительского комментария
+  $comment->uid = $user->uid; // uid автора комментария
+  $comment->mail = '<a href="mailto:' . $user->mail . '">' . $user->mail . '</a>'; // email пользователя
+  $comment->name = ''; // если пользователь зарегистрирован, то можно оставить пустым, оно заполнится автоматически, а если анонимный, то нужно указать
+  $comment->thread = '01/'; // Необязательно. Указывается при иерархических комментариях
+  $comment->hostname = '127.0.01'; // Необязательно. IP для логов
+  $comment->created = time(); // Необязательно. Дата публикации комментария
+  $comment->is_anonymous = 0; // оставить как есть
+  $comment->homepage = ''; // Домашняя старница
+  $comment->status = COMMENT_PUBLISHED; // Опубликован
+  $comment->language = LANGUAGE_NONE; // Такой же как и у ноды
+  $comment->subject = $form_state['values']['title'];
+
+  $comment->comment_body[$comment->language][0]['value'] = $form_state['values']['textarea'];
+  $comment->comment_body[$comment->language][0]['format'] = 'filtered_html';
+
+  if ($comment = comment_submit($comment)) {
+    comment_save($comment); // сохраниние комментария
+  }
+  dpm($comment);
+  //drupal_set_message(t('The form has been submitted.'));
+}
+/**
+* Validate form required
+*/
+function form_required_2($element, &$form_state, $form) {
+  if (empty($element['#value'])) {
+    form_error($element, t('Поле обов\'язкове!'));
+  }
+}
+
+/**
+* Popup’s callback function for form.
+*/  
+function _ctools_modal_comments ($js = NULL) {
+   if (!$js) {
+      // Якщо JavaScript вимкнено — то виводимо форму без попапа.
+        return drupal_get_form('add_comment_form');
+  }
+ctools_include('ajax');
+ctools_include('modal');
+     // Задаємо початкові налаштування форми.
+$form_state = array(
+  'ajax' => TRUE,
+  'title' => t('Add comment'),
+);
+$output = ctools_modal_form_wrapper('add_comment_form', $form_state);
+print ajax_render($output);
+drupal_exit();
+}

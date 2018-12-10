@@ -1,0 +1,5 @@
+name = My Drush Command
+description = "Drush command, that creating node with custom type and random title"
+package = My Modules
+core = 7.x
+files[]= my_drushcom.module

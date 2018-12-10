@@ -1,0 +1,100 @@
+<?php
+
+/**
+* Створити власний віджет для term reference поля. 
+* Суть віджета - вивести селект-ліст 
+* з доступними термінами таксономії, 
+* перший рівень таксномії повинен бути 
+* групуванням (optgroup) для наступних рівнів.
+*/
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function my_widget_field_widget_info() {  
+  // Returning massive.
+  return array(   
+    'my_widget' => array(  
+    'label' => t('Select list with optgroups'),  
+    'field types' => array('taxonomy_term_reference'), 
+    'behaviors' => array(
+      'multiple values' => FIELD_BEHAVIOR_DEFAULT,
+      'default value' => FIELD_BEHAVIOR_DEFAULT,
+    ),
+    ),
+  ); 
+} 
+
+	/**
+	 * Implements hook_field_widget_form ().
+	 */
+
+function my_widget_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  
+  $query = db_select('taxonomy_term_data', 't');
+  $query->join('taxonomy_term_hierarchy', 'h', 'h.tid = t.tid');
+  $query->fields('t', array('tid','name'))
+  ->fields('h', array('parent'));
+  $result = $query->execute()->fetchAll();
+
+  $options = array();
+  foreach ($result as $term) {
+    if ($term->parent == 0) {
+      $options[] = array (
+        'name' => $term->name,
+        'id' => $term->tid,
+      );
+    }
+  }
+
+  foreach ($result as $term) {
+    if ($term->parent != 0) {
+      foreach ($options as &$opt) {
+        if ($term->parent == $opt['id']) {
+          $opt['child'][] = $term->name;
+        }
+      }
+    }
+  }
+  
+  $new_opt = array();
+  
+  foreach ($options as &$opt) {
+    unset($opt['id']);
+    if (!isset($opt['child'])) {
+      $opt = $opt['name'];
+      $new_opt[] = $opt;
+    }
+    else
+    {
+      $opt = array ($opt['name'], $opt['child']);
+      $new_opt[$opt[0]] = $opt[1];
+    }
+    
+  }
+
+  // Setting switch into parameters that will work widget types that are in module.
+  switch ($instance['widget']['type']) {  
+    // If parameter case is 'my_widget'.
+    case 'my_widget':  
+      // Then we assign to my_widget element an array.
+      // With the following values.
+      $element['my_widget'] = array(  
+        // Element type 'select'.
+        '#type' => 'select',  
+        // Heading given in element settings.
+        '#title' => $element['#title'],  
+        // Widget description is given in element settings.
+        '#description' => $element['#description'], 
+        // If element is required it will be indicated in settings of the very element.
+        '#required' => $element['#required'],
+        '#options' => $new_opt,
+        // If it's indicated, value should be used, if not, value is 0.
+        '#weight' => isset($element['#weight']) ? $element['#weight'] : 0, 
+        // Line that we'll need for the output,
+        '#delta' => $delta,  
+      ); 
+      break; 
+  } 
+  return $element;
+}

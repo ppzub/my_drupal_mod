@@ -1,0 +1,43 @@
+<?php
+function my_schema_schema() {
+ $schema['test_table'] = array(
+    'description' => 'My Test Table',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'The primary identifier',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'vid' => array(
+        'description' => 'The current vid version identifier.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0),
+      'type' => array(
+        'description' => 'The type of this',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => ''),
+      'title' => array(
+        'description' => 'The title of this',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'created' => array(
+        'description' => 'The Unix timestamp when this was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0),
+      'changed' => array(
+        'description' => 'The Unix timestamp when this was most recently saved.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0),
+      ),
+    'primary key' => array('nid'),
+  );
+  return $schema;
+}

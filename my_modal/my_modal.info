@@ -1,0 +1,6 @@
+name = My Modal Comments 
+description = "Testing pop-up modal window for add/edit/delete comments"
+package = My Modules
+core = 7.x
+files[]= my_modal.module
+dependencies[] = ctools

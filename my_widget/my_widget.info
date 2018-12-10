@@ -1,0 +1,5 @@
+name = Term Reference Widget
+description = "Add a widget for term reference field"
+package = My Modules
+core = 7.x
+files[] = my_widget.module

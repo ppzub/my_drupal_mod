@@ -1,0 +1,112 @@
+<?php
+
+/**
+* Створити власний форматер для entityreference поля, 
+* який буде виводити приєднанні ентіті у вигляді списку з посилань, 
+* де заголовок entity - це текст посилання, а маска урл посилання
+* повинна налаштовуватись в форматері.
+*/
+
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function entityreffield_field_formatter_info() {
+  return array(
+    'entityreffield_formatter' => array( //Machine name of the formatter
+      'label' => t('Entity Reference List'),
+      'field types' => array('entityreference'), //This will only be available to entityreference fields
+      'settings'  => array( //Array of the settings we'll create
+        'mask' => '',
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_settings_form().
+ */
+function entityreffield_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  //This gets the view_mode where our settings are stored
+  $display = $instance['display']['default'];
+  //This gets the actual settings
+  $settings = $display['settings'];
+  //Initialize the element variable
+  $element = array();
+  //Add our text field
+  
+  $element['mask'] = array(
+    '#type' => 'textfield',
+    '#maxlength' => 200,
+    '#size' => 50,
+    '#access' => TRUE,
+    '#title' => t('URL'),
+    '#required' => FALSE,
+    '#title_display' => 'before',
+    '#description' => t('You can edit here path alias, like "sometext/"'),
+    '#default_value'  => $settings['mask'],
+  );
+
+  return $element;
+}
+
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function entityreffield_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+  $summary = t('You can change URL alias for entity');
+  return $summary;
+}
+
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function entityreffield_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array(); // Initialize the var
+  $mask = $display['settings']['mask']; // get the settings
+  $entity_id = array();
+  $node_titles = array();
+  $old_urls = array(); 
+
+  $list = array(
+    '#theme' => 'item_list',
+    '#title' => '',
+    '#items' => array(),
+    '#type' => 'ul',
+  );
+  
+  foreach ($items as $item) {
+    $entity_id[] = (int)$item['target_id'];
+  }
+  
+  foreach ($entity_id as $id) {
+    $node_titles[] = db_query("SELECT title FROM {node} WHERE nid = :id", array(":id" => $id))->fetchField();
+    $old_urls[] = path_load(array('source' => 'node/'.$id));
+  }
+
+    
+    
+    if (strlen($mask) > 0) {
+      $i = 0;
+      foreach ($old_urls as $path) {
+        $path['alias'] = explode('/', $path['alias']);
+        $path['alias'] = $path['alias'][1];
+        $path['alias'] = $mask . $path['alias'];
+        path_save($path);
+      }
+   }
+    
+    $i = 0;
+    foreach ($node_titles as $item) {
+      $list['#items'][] = array(
+        'data' => l($item, $old_urls[$i]['alias']),
+        'id' => 'first-nested',
+      );
+      $i++;
+    }
+  return $list;
+}

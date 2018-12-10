@@ -1,0 +1,5 @@
+name = Entity Reference Formatter
+description = "Add a formatter to entityreference that allows Admins to determine how links will be displayed"
+package = My Modules
+core = 7.x
+files[] = entityreffield.module

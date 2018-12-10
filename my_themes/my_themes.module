@@ -1,0 +1,322 @@
+<?php
+
+/**
+* Implements hook_menu().
+*/
+function my_themes_menu() {
+  $items = array();
+  $items['test_theme'] = array(
+  'title' => 'My testing theme functions',
+  'title callback' => FALSE,
+  'page callback' => '_theme_page_fieldset',
+  'access callback' => TRUE, 
+  );
+  $items['test_render_array'] = array(
+  'title' => 'My testing render array',
+  'title callback' => FALSE,
+  'page callback' => '_render_page_fieldset',
+  'access callback' => TRUE,  
+  );
+  return $items;
+}
+/**
+* Implements testing theme functions page.
+*/
+function _theme_page_fieldset () {
+  drupal_add_library('system', 'drupal.collapse');
+  $table_element = array( 
+    '#title'         => t('Таблиця жанрів'),
+    '#children'    => _my_theme_table(), 
+    '#collapsible' => true, 
+    '#collapsed'   => true, 
+    '#attributes'  => array(  
+      'class' => array('collapsible', 'collapsed')
+    ), 
+  ); 
+  $fieldset_table = theme('fieldset', array('element' => $table_element));
+  
+  $list_element = array( 
+    '#title'         => t('Список жанрів і їх фільми'),
+    '#children'    => _mytheme_item_list(), 
+    '#collapsible' => true, 
+    '#collapsed'   => true, 
+    '#attributes'  => array(  
+      'class' => array('collapsible', 'collapsed')
+    ), 
+  ); 
+  $fieldset_list = theme('fieldset', array('element' => $list_element));
+  
+  $image = array(
+  '#title' => t('Хатія Деканоїдзе'),
+  '#children' => theme(
+    'image_style', array(
+      'path' => 'public://89_tn.jpg',
+      'style_name' => 'medium',
+      'title' => 'Хатія Деканоїдзе',
+      'attributes' => array('width' => 400),
+    )),
+  '#collapsible' => true, 
+  '#collapsed'   => true,
+  '#attributes'  => array(  
+    'class' => array('collapsible', 'collapsed')
+  ), 
+  );
+  $fieldset_image = theme('fieldset', array('element' => $image));
+  
+  // test hook_theme
+  $last_film_id = db_query("SELECT nid, created FROM {node} WHERE type = :film ORDER BY created desc", array(":film" => "film"))->fetchField();
+  $last_film_title = db_query("SELECT title FROM {node} WHERE nid = :id", array(":id" => $last_film_id))->fetchField();
+  $recenz_id = db_query("SELECT entity_id FROM {field_data_field_film} WHERE field_film_target_id = :id", array(":id" => $last_film_id))->fetchField();
+  $last_film_body = db_query("SELECT body_value FROM {field_data_body} WHERE entity_id = :id", array(":id" => $last_film_id))->fetchField();
+  $last_film_body = strip_tags($last_film_body);
+  $last_film_body = substr($last_film_body, 0, 777);
+  $recenz_body = db_query("SELECT body_value FROM {field_data_body} WHERE entity_id = :id", array(":id" => $recenz_id))->fetchField();
+  $recenz_body = strip_tags($recenz_body);
+  $recenz_body = substr($recenz_body, 0, 640);
+  
+  $vars = array();
+  $vars['title_fieldset'] = 'Короткий опис останнього доданого фільму';
+  $vars['text'] = $recenz_body;
+  $vars['last_film_title'] = $last_film_title;
+  $vars['last_film_body'] = $last_film_body;
+  $vars['class'] = 'some_class';
+  $vars['id'] = 'some_id';
+  $test = theme('my_themes_header', $vars);
+  // end test hook_theme
+  return "$fieldset_table" . "$fieldset_list" . "$fieldset_image" . "$test";
+}
+/**
+* Build a _my_themes_table
+*/
+function _my_theme_table() {
+  $header = array( 
+    array('data' => t('Жанр')),   
+    array('data' => t('Кількість фільмів')),   
+  );
+   
+  $que = db_select('taxonomy_term_data', 't');
+  $que->join('taxonomy_term_hierarchy', 'th', 't.tid = th.tid');
+  $que->fields('t', array('name', 'tid'));
+  $que->condition('th.parent', 0);
+  $result1 = $que->execute()->fetchAll(); 
+	    //dpm($result1);
+      
+  $query = db_select('taxonomy_term_data', 't');
+  $query->join('field_data_field_field_genge', 'f', 'f.field_field_genge_tid = t.tid');
+  //$query->fields('t', array('tid'))
+  //->fields('f', array('field_field_genge_tid', 'entity_id'));
+  $query->addExpression('count(f.field_field_genge_tid)', 'film_count');
+  $query->groupBy('f.field_field_genge_tid');
+  $result2 = $query->execute()->fetchAll();
+  
+  $result = array();
+  for ($i = 0; $i < count($result1); $i++) {
+    $result[$i] = array ($result1[$i]->name, $result2[$i]->film_count);
+  }
+	    
+  foreach ($result as $tax) {
+    $rows[] = array (
+      'data' => $tax,
+    ); 
+  }
+  
+  return theme('table', array('header' => $header, 'rows'=> $rows));
+}
+/**
+* Build a theme list
+*/
+function _mytheme_item_list() {
+  
+  $variables = array(
+    'items' => array(),
+    // Leave the title element empty to omit the ul title.
+    'title' => '',
+    'type' => 'ul',
+    'attributes' => array(),
+  );
+
+  $genres = db_select('taxonomy_term_data', 't') 
+    ->fields('t', array('name', 'tid'))
+    ->execute() 
+    ->fetchAll(); 
+    
+  foreach ($genres as $t) {
+    
+    $query1 = db_select('node', 'n');
+    $query1->join('field_data_field_field_genge', 'f', 'f.entity_id = n.nid');
+    $query1->fields('n', array('title'))
+    ->condition('f.field_field_genge_tid', $t->tid);
+    $result1 = $query1->execute()->fetchAll();
+    
+    $films = array();
+    foreach ($result1 as $f) {
+      $films[] = $f->title;
+    }
+    
+    $variables['items'][] = array(
+      'data' => $t->name,
+      'id' => 'first-nested',
+      'children' => $films,
+    );
+  }
+  
+return theme('item_list', $variables);
+}
+/**
+* Implements testing render arrays page.
+*/
+function _render_page_fieldset () {
+  drupal_add_library('system', 'drupal.collapse');
+  $render_table = array(
+    '#type' => 'fieldset',
+    '#title' => t('Таблиця жанрів'),
+    'content' => array(_my_render_table()),
+    '#attributes' => array (
+      'class' => array('collapsible', 'collapsed')
+    )
+  );
+  
+  $render_list = array(
+    '#type' => 'fieldset',
+    '#title' => t('Список жанрів і їх фільми'),
+    'content' => _my_render_item_list(),
+    '#attributes' => array (
+      'class' => array('collapsible', 'collapsed')
+    )
+  );
+  
+  $render_image = array(
+    '#type' => 'fieldset',
+    '#title' => t('Хатія Деканоїдзе'),
+    'content' => array(
+      '#theme' => 'image_style',
+      '#path' => 'public://89_tn.jpg',
+      '#style_name' => 'medium',
+      '#title' => 'Хатія Деканоїдзе',
+      '#attributes' => array('width' => 400)
+    ),
+    '#attributes' => array (
+      'class' => array('collapsible', 'collapsed')
+    )
+  );
+  $output = array($render_table, $render_list, $render_image);
+  return $output;
+}
+/**
+* Build a table with render array
+*/
+function _my_render_table() {
+  $header = array( 
+    array('data' => t('Жанр')),   
+    array('data' => t('Кількість фільмів')),   
+  );
+   
+  $que = db_select('taxonomy_term_data', 't');
+  $que->join('taxonomy_term_hierarchy', 'th', 't.tid = th.tid');
+  $que->fields('t', array('name', 'tid'));
+  $que->condition('th.parent', 0);
+  $result1 = $que->execute()->fetchAll();  
+	    
+  $query = db_select('taxonomy_term_data', 't');
+  $query->join('field_data_field_field_genge', 'f', 'f.field_field_genge_tid = t.tid');
+  //$query->fields('t', array('tid'))
+  //->fields('f', array('field_field_genge_tid', 'entity_id'));
+  $query->addExpression('count(f.field_field_genge_tid)', 'film_count');
+  $query->groupBy('f.field_field_genge_tid');
+  $result2 = $query->execute()->fetchAll();
+  
+  $result = array();
+  for ($i = 0; $i < count($result1); $i++) {
+    $result[$i] = array ($result1[$i]->name, $result2[$i]->film_count);
+  }
+	    
+  foreach ($result as $tax) {
+    $rows[] = array (
+      'data' => $tax,
+    ); 
+  }
+  $render_table = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+  );
+  
+  return $render_table;
+}
+/**
+* Build a list with render array
+*/
+function _my_render_item_list() {
+  $list = array(
+    '#theme' => 'item_list',
+    '#items' => array(),
+    '#type' => 'ul',
+  );
+  $genres = db_select('taxonomy_term_data', 't') 
+    ->fields('t', array('name', 'tid'))
+    ->execute() 
+    ->fetchAll(); 
+    
+  foreach ($genres as $t) {
+    $query1 = db_select('node', 'n');
+    $query1->join('field_data_field_field_genge', 'f', 'f.entity_id = n.nid');
+    $query1->fields('n', array('title'))
+    ->condition('f.field_field_genge_tid', $t->tid);
+    $result1 = $query1->execute()->fetchAll();
+    
+    $films = array();
+    foreach ($result1 as $f) {
+      $films[] = $f->title;
+    }
+    
+    $list['#items'][] = array(
+      'data' => $t->name,
+      'id' => 'first-nested',
+      'children' => $films,
+    );
+  }
+  return $list;
+}
+/**
+* Testing hook_theme for theme function with template file
+*/
+function my_themes_theme($existing, $type, $theme, $path){
+  return array(
+    'my_themes_header' => array( // Назва функції темізації
+      //'template' => 'header', // це для використання файлу шаблона (назва файлу)
+      //'path' => $path . '/templates', // це для використання файлу шаблона (каталог, шлях до файлу)
+      'type' => 'theme',
+      'variables' => array(
+        'text' => NULL,
+        'class' => NULL,
+        'id' => NULL,
+        'last_film_title' => NULL,
+        'title_fieldset' => NULL,
+        'last_film_body' => NULL,
+        ),
+    ),
+  );
+}
+/**
+* Implements theme function for hook_theme
+*/
+
+function theme_my_themes_header($variables) {
+  $output = '<h2 align="center">' . $variables['last_film_title'] .'</h2>';
+  $output .= '<div class=' . $variables['class'] . ' id=' . $variables['id'] . ' align="justify">';
+  $output .= $variables['text'];
+  $output .= '</div>';
+  $output .= '<fieldset>
+    <legend><span class="fieldset-legend">' .  
+    $variables['title_fieldset'] . '</span></legend>
+    <div class="fieldset-wrapper" align="justify">' . 
+    $variables['last_film_body'] . '</div></fieldset>';
+  return $output;
+}
+
+
+
+
+
+
+

@@ -1,0 +1,5 @@
+name = My Schema Test
+description = "Testing a hook_schema"
+package = My Modules
+core = 7.x
+files[]= my_schema.module

@@ -1,0 +1,198 @@
+<?php
+/**
+* Implements hook_menu().
+*/
+function contacts_page_menu() {
+  $items = array();
+  $items['contacts'] = array(
+  'title' => 'Contacts',
+  'page callback' => 'drupal_get_form',
+  'page arguments' => array('_contacts_page_form'),
+  'access callback' => TRUE,
+  );
+  return $items;
+}
+
+/**
+* Build a contacts page form
+*/
+function _contacts_page_form($form, $form_state) {
+  $form = array();
+  $form['contact'] = array(
+    '#type' => 'fieldset', 
+    '#weight' => -1, 
+    '#collapsible' => FALSE, 
+    '#collapsed' => FALSE,
+  );
+  $form['contact']['firstname'] = array(
+	'#type' => 'textfield',
+	'#maxlength' => 50,
+	'#size' => 25,
+	'#access' => TRUE,
+	'#title' => t('Ім\'я'),
+	'#required' => FALSE,
+	'#title_display' => 'before',
+	'#weight' => 0,
+  );
+  $form['contact']['lastname'] = array(
+	'#type' => 'textfield',
+	'#maxlength' => 50,
+	'#size' => 25,
+	'#access' => TRUE,
+	'#title' => t('Прізвище'),
+	'#required' => FALSE,
+	'#title_display' => 'before',
+	'#weight' => 1,
+  );
+  $form['contact']['nick'] = array(
+	'#type' => 'textfield',
+	'#maxlength' => 50,
+	'#size' => 25,
+	'#access' => TRUE,
+	'#title' => t('Нік'),
+	'#required' => TRUE,
+	'#title_display' => 'before',
+	'#weight' => 2,
+	'#element_validate' => array('form_required'),
+  );
+  $form['contact']['email'] = array(
+	'#type' => 'textfield',
+	'#maxlength' => 50,
+	'#size' => 25,
+	'#access' => TRUE,
+	'#title' => t('Електронна почта'),
+	'#required' => TRUE,
+	'#title_display' => 'before',
+	'#weight' => 3,
+	'#element_validate' => array('form_required'),
+  );
+  $form['contact']['phone'] = array(
+	'#type' => 'textfield',
+	'#maxlength' => 50,
+	'#size' => 25,
+	'#access' => TRUE,
+	'#title' => t('Номер телефону'),
+	'#required' => FALSE,
+	'#title_display' => 'before',
+	'#weight' => 4,
+	'#element_validate' => array('phone_validate'),
+	'#default_value' => '+38',
+  );
+  $form['contact']['sex'] = array(
+	'#type' => 'radios',
+	'#access' => TRUE,
+	'#title' => t('Стать'),
+	'#required' => FALSE,
+	'#title_display' => 'before',
+	'#weight' => 5,
+    '#options' => array(t('чоловік'), t('жінка')),
+  );
+  $form['contact']['country'] = array(
+	'#type' => 'select',
+	'#access' => TRUE,
+	'#title' => t('Країна'),
+	'#required' => FALSE,
+	'#title_display' => 'before',
+	'#weight' => 6,
+    '#options' => array(t('Україна'), t('Росія'), t('США')),
+  );
+  $form['contact']['message'] = array(
+	'#type' => 'textarea',
+	'#access' => TRUE,
+	'#cols' => 80,
+	'#rows' => 10,
+	'#default_value' => t('Ваше повідомлення'),
+	'#required' => TRUE,
+	'#title' => t('Повідомлення'),
+	'#title_display' => 'invisible',
+	'#weight' => 7,
+	'#element_validate' => array('form_required'),
+  );
+  $form['contact']['rules'] = array(
+	'#type' => 'checkbox',
+	'#access' => TRUE,
+	'#title' => t('Я погоджуюсь з правилами'),
+	'#required' => TRUE,
+	'#title_display' => 'before',
+	'#weight' => 8,
+	'#default_value' => TRUE,
+  );
+  $form['contact']['submit'] = array(
+	'#type' => 'submit',
+	'#access' => TRUE,
+	'#value' => t('Відправити'),
+	'#weight' => 9,
+	'#ajax' => array(
+        'callback' => '_submit_contacts_page_form',
+        'wrapper' => 'empty_wrapper',
+      ),
+  );
+  return $form;
+}
+
+/**
+* Validate form required
+*/
+function form_required($element, &$form_state, $form) {
+  if (empty($element['#value'])) {
+    form_error($element, t('Поле обов\'язкове!'));
+  }
+}
+/**
+* Validate phone number
+*/
+function phone_validate($element, &$form_state, $form) {
+  $length = strlen($element['#value']);
+  if ($length != 13)
+    form_error($element, t('невірна кількість цифр'));
+  if (!intval($element['#value']))
+    form_error($element, t('помилка вводу номера телефону'));
+}
+/**
+* Submit contacts form page
+*/
+function _submit_contacts_page_form($form, &$form_state) {
+  $text = 'Ім\'я - ' . $form_state['values']['firstname'] . "\n"
+    . 'Фамілія - ' . $form_state['values']['lastname'] . "\n"
+    . 'Нікнейм - ' . $form_state['values']['nick'] . "\n"
+    . 'E-mail - ' . $form_state['values']['email'] . "\n"
+    . 'Телефон - ' . $form_state['values']['phone'] . "\n";
+  if ($form_state['values']['sex'] == 0)
+    $text .= 'Стать - ' . 'чоловік' . "\n";
+  elseif ($form_state['values']['sex'] == 1)
+    $text .= 'Стать - ' . 'жінка' . "\n"; 
+  switch ($form_state['values']['country']) {
+    case 0:
+      $text .= 'Країна - ' . 'Україна' . "\n";
+      break;
+    case 1:
+      $text .= 'Країна - ' . 'Росія' . "\n";
+      break;
+    case 2:
+      $text .= 'Країна - ' . 'США' . "\n";
+      break;
+  }
+  $result = array(
+    '#type' => 'ajax',
+    '#commands' => array(
+      ajax_command_alert($text),
+    ),
+  );
+  return $result;
+}
+/**
+* Implements hook_form_alter 
+*/
+function contacts_page_form_alter(&$form, $form_state, $form_id) {
+  //drupal_set_message("Form ID is : " . $form_id);
+  if ($form_id == '_contacts_page_form') {
+    $form['contact']['nick']['#title'] = t('Логін');
+    $form['contact']['message']['#default_value'] = t('ФОРМА ЗМІНЕНА за допомогою hook_form_alter');
+  }
+}
+/**
+* Implementation of hook_form_FORM_ID_alter().
+*/
+function contacts_page_form_search_block_form_alter(&$form, $form_state) {
+    $form['search_block_form']['#default_value'] = t('пошук');
+  }
